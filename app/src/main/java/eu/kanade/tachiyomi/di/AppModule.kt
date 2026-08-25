@@ -23,6 +23,15 @@ import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.translator.MangaSourceLanguageInferrer
+import eu.kanade.tachiyomi.data.translator.PageTranslatorCache
+import eu.kanade.tachiyomi.data.translator.PageTranslatorEngine
+import eu.kanade.tachiyomi.data.translator.PageTranslatorManager
+import eu.kanade.tachiyomi.data.translator.ocr.MlKitPageOcr
+import eu.kanade.tachiyomi.data.translator.render.TranslatedPageRenderer
+import eu.kanade.tachiyomi.data.translator.translate.DeepLTranslator
+import eu.kanade.tachiyomi.data.translator.translate.HybridTranslator
+import eu.kanade.tachiyomi.data.translator.translate.MlKitTranslator
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.network.JavaScriptEngine
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -178,6 +187,16 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { EHentaiUpdateHelper(app) }
 
         addSingletonFactory { PagePreviewCache(app) }
+
+        addSingletonFactory { PageTranslatorCache(app, get()) }
+        addSingletonFactory { MlKitPageOcr() }
+        addSingletonFactory { TranslatedPageRenderer() }
+        addSingletonFactory { MlKitTranslator() }
+        addSingletonFactory { DeepLTranslator(get(), get(), get()) }
+        addSingletonFactory { HybridTranslator(get(), get(), get()) }
+        addSingletonFactory { PageTranslatorEngine(get(), get(), get(), get()) }
+        addSingletonFactory { MangaSourceLanguageInferrer(get()) }
+        addSingletonFactory { PageTranslatorManager(get(), get(), get(), get(), get(), get()) }
 
         addSingletonFactory { GoogleDriveService(app) }
         // SY <--

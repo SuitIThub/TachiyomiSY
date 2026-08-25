@@ -13,9 +13,9 @@ object EXHMigrations {
 
     fun migrateBackupEntry(manga: Manga): Manga {
         var newManga = manga
-        if (newManga.source == 6907L) {
+        if (newManga.source == 6907L || newManga.source in NHentai.LANGUAGE_SOURCE_IDS) {
             newManga = newManga.copy(
-                // Migrate the old source to the delegated one
+                // Migrate the old / language-specific sources to the native one
                 source = NHentai.otherId,
                 // Migrate nhentai URLs
                 url = getUrlWithoutDomain(newManga.url),

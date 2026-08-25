@@ -6,7 +6,7 @@ import tachiyomi.domain.manga.model.Manga
 // Used to speed up isLewdSource
 var metadataDelegatedSourceIds: List<Long> = emptyList()
 
-var nHentaiSourceIds: List<Long> = emptyList()
+var nHentaiSourceIds: List<Long> = listOf(NHENTAI_SOURCE_ID)
 
 var lanraragiSourceIds: List<Long> = emptyList()
 
@@ -15,14 +15,20 @@ var mangaDexSourceIds: List<Long> = emptyList()
 var LIBRARY_UPDATE_EXCLUDED_SOURCES = listOf(
     EH_SOURCE_ID,
     EXH_SOURCE_ID,
+    NHENTAI_SOURCE_ID,
     PURURIN_SOURCE_ID,
 )
 
 // This method MUST be fast!
 fun isMetadataSource(source: Long) = source in 6900..6999 ||
+    source == NHENTAI_SOURCE_ID ||
     metadataDelegatedSourceIds.binarySearch(source) >= 0
 
 fun Source.isEhBasedSource() = id == EH_SOURCE_ID || id == EXH_SOURCE_ID
+
+fun Source.isNhBasedSource() = id == NHENTAI_SOURCE_ID || id in nHentaiSourceIds
+
+fun Manga.isNhBasedManga() = source == NHENTAI_SOURCE_ID || source in nHentaiSourceIds
 
 fun Source.isMdBasedSource() = id in mangaDexSourceIds
 

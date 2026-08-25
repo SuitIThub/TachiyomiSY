@@ -67,6 +67,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Tachiyomi">
 
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr,ocr_chinese,ocr_japanese,ocr_korean" />
+
         <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"

@@ -24,6 +24,7 @@ import exh.source.EnhancedHttpSource
 import exh.source.ExhPreferences
 import exh.source.HBROWSE_SOURCE_ID
 import exh.source.MERGED_SOURCE_ID
+import exh.source.NHENTAI_SOURCE_ID
 import exh.source.PURURIN_SOURCE_ID
 import exh.source.TSUMINO_SOURCE_ID
 import exh.source.handleSourceLibrary
@@ -101,6 +102,7 @@ class AndroidSourceManager(
                         if (enableExhentai) {
                             put(EXH_SOURCE_ID, EHentai(EXH_SOURCE_ID, true, context))
                         }
+                        put(NHENTAI_SOURCE_ID, NHentai(context))
                         put(MERGED_SOURCE_ID, MergedSource())
                         // SY <--
                     }
@@ -162,7 +164,7 @@ class AndroidSourceManager(
             this
         }
 
-        return if (id in BlacklistedSources.BLACKLISTED_EXT_SOURCES) {
+        return if (id == NHENTAI_SOURCE_ID || id in BlacklistedSources.BLACKLISTED_EXT_SOURCES) {
             xLogD(
                 "Removing blacklisted source: (id: %s, name: %s, lang: %s)!",
                 id,
@@ -270,13 +272,6 @@ class AndroidSourceManager(
                 EIGHTMUSES_SOURCE_ID,
                 "eu.kanade.tachiyomi.extension.en.eightmuses.EightMuses",
                 EightMuses::class,
-            ),
-            DelegatedSource(
-                "NHentai",
-                fillInSourceId,
-                "eu.kanade.tachiyomi.extension.all.nhentai.NHentai",
-                NHentai::class,
-                true,
             ),
             DelegatedSource(
                 "LANraragi",

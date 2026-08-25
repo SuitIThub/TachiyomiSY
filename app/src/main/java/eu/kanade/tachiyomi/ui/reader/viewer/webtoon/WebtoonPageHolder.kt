@@ -12,6 +12,8 @@ import androidx.core.view.updateMargins
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
+import eu.kanade.tachiyomi.data.translator.PageTranslationHelper
+import eu.kanade.tachiyomi.data.translator.PageTranslatorManager
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
@@ -33,6 +35,8 @@ import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 /**
  * Holder of the webtoon reader for a single page of a chapter.
@@ -80,6 +84,10 @@ class WebtoonPageHolder(
      */
     private var loadJob: Job? = null
 
+    private var translationUpgradeJob: Job? = null
+
+    private val translator: PageTranslatorManager = Injekt.get()
+
     init {
         refreshLayoutParams()
 
@@ -116,6 +124,8 @@ class WebtoonPageHolder(
     override fun recycle() {
         loadJob?.cancel()
         loadJob = null
+        translationUpgradeJob?.cancel()
+        translationUpgradeJob = null
 
         removeErrorLayout()
         frame.recycle()
@@ -188,26 +198,47 @@ class WebtoonPageHolder(
         progressIndicator.setProgress(0)
 
         val streamFn = page?.stream ?: return
+        val currentPage = page ?: return
+        val mangaId = viewer.activity.viewModel.manga?.id
+        val transformKey = buildString {
+            if (viewer.config.dualPageSplit) append("split")
+            if (viewer.config.dualPageRotateToFit) append("rotate")
+        }
 
         try {
             val (source, isAnimated) = withIOContext {
-                val source = streamFn().use { process(Buffer().readFrom(it)) }
-                val isAnimated = ImageUtil.isAnimatedAndSupported(source)
-                Pair(source, isAnimated)
+                val processed = streamFn().use { process(Buffer().readFrom(it)) }
+                val isAnimated = ImageUtil.isAnimatedAndSupported(processed)
+                val translated = if (!isAnimated) {
+                    PageTranslationHelper.maybeReplaceWithTranslation(
+                        manager = translator,
+                        page = currentPage,
+                        mangaId = mangaId,
+                        source = processed,
+                        transformKey = transformKey,
+                    )
+                } else {
+                    processed
+                }
+                Pair(translated, isAnimated)
             }
             withUIContext {
-                frame.setImage(
-                    source,
-                    isAnimated,
-                    ReaderPageImageView.Config(
-                        zoomDuration = viewer.config.doubleTapAnimDuration,
-                        minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
-                        cropBorders =
-                        (viewer.config.imageCropBorders && viewer.isContinuous) ||
-                            (viewer.config.continuousCropBorders && !viewer.isContinuous),
-                    ),
-                )
-                removeErrorLayout()
+                displayTranslatedImage(source, isAnimated)
+            }
+            if (!isAnimated && mangaId != null) {
+                translationUpgradeJob?.cancel()
+                translationUpgradeJob = scope.launch {
+                    PageTranslationHelper.observeTranslationUpgrade(
+                        manager = translator,
+                        page = currentPage,
+                        mangaId = mangaId,
+                        transformKey = transformKey,
+                    ) { translated ->
+                        withUIContext {
+                            displayTranslatedImage(translated, isAnimated = false)
+                        }
+                    }
+                }
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e)
@@ -215,6 +246,21 @@ class WebtoonPageHolder(
                 setError(e)
             }
         }
+    }
+
+    private fun displayTranslatedImage(source: BufferedSource, isAnimated: Boolean) {
+        frame.setImage(
+            source,
+            isAnimated,
+            ReaderPageImageView.Config(
+                zoomDuration = viewer.config.doubleTapAnimDuration,
+                minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
+                cropBorders =
+                (viewer.config.imageCropBorders && viewer.isContinuous) ||
+                    (viewer.config.continuousCropBorders && !viewer.isContinuous),
+            ),
+        )
+        removeErrorLayout()
     }
 
     private fun process(imageSource: BufferedSource): BufferedSource {

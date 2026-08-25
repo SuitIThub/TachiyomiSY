@@ -738,4 +738,34 @@
 
     <!-- Humanize time -->
     <string name="humanize_fallback">moments ago</string>
+
+    <!-- Page translator -->
+    <string name="pref_category_page_translator">Page translator</string>
+    <string name="pref_page_translator_enabled">Enable page translator</string>
+    <string name="pref_page_translator_enabled_summary">OCR manga text and overlay translations while reading</string>
+    <string name="pref_page_translator_provider">Translation provider</string>
+    <string name="pref_page_translator_provider_auto">Auto (DeepL when available)</string>
+    <string name="pref_page_translator_provider_on_device">On-device only</string>
+    <string name="pref_page_translator_provider_deepl">DeepL only</string>
+    <string name="pref_page_translator_deepl_api_key">DeepL API key</string>
+    <string name="pref_page_translator_deepl_api_type">DeepL API type</string>
+    <string name="pref_page_translator_deepl_free">Free</string>
+    <string name="pref_page_translator_deepl_pro">Pro</string>
+    <string name="pref_page_translator_source_lang">Source language</string>
+    <string name="pref_page_translator_target_lang">Target language</string>
+    <string name="pref_page_translator_preload">Translation preload</string>
+    <string name="pref_page_translator_cache_size">Translator cache size</string>
+    <string name="pref_page_translator_lang_auto">Auto-detect</string>
+    <string name="pref_page_translator_lang_default">Default</string>
+    <string name="pref_page_translator_manga_mode">Page translator for this series</string>
+    <string name="pref_page_translator_manga_mode_default">Use global setting</string>
+    <string name="pref_page_translator_manga_mode_on">On</string>
+    <string name="pref_page_translator_manga_mode_off">Off</string>
+    <string name="pref_page_translator_merge_mode">Text grouping</string>
+    <string name="pref_page_translator_merge_conservative">Conservative</string>
+    <string name="pref_page_translator_merge_standard">Standard (keep paragraphs)</string>
+    <string name="pref_page_translator_merge_aggressive">Aggressive</string>
+    <string name="pref_page_translator_info">Uses on-device OCR. DeepL improves translation quality when an API key is set. With source language set to Auto, the app infers it from manga metadata (language, tags, title, description, source). Use Standard/Aggressive text grouping if sentences are split across boxes. Stylized manga fonts may reduce accuracy.</string>
+    <string name="action_toggle_page_translator">Toggle page translator</string>
+    <string name="page_translator_models_downloading">Downloading translation models…</string>
 </resources>

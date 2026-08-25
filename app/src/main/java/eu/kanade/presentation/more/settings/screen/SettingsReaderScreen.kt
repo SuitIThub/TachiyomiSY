@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalView
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.tachiyomi.data.translator.PageTranslatorPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderBottomButton
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
@@ -76,6 +77,7 @@ object SettingsReaderScreen : SearchableSettings {
             // SY -->
             getPageDownloadingGroup(readerPreferences = readerPref),
             getForkSettingsGroup(readerPreferences = readerPref),
+            getPageTranslatorGroup(),
             // SY <--
         )
     }
@@ -598,6 +600,105 @@ object SettingsReaderScreen : SearchableSettings {
                     entries = ReaderPreferences.archiveModeTypes
                         .mapIndexed { index, it -> index to stringResource(it) }
                         .toMap(),
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getPageTranslatorGroup(): Preference.PreferenceGroup {
+        val prefs = remember { Injekt.get<PageTranslatorPreferences>() }
+        val enabled by prefs.enabled.collectAsState()
+        val provider by prefs.provider.collectAsState()
+
+        return Preference.PreferenceGroup(
+            title = stringResource(SYMR.strings.pref_category_page_translator),
+            preferenceItems = listOf(
+                Preference.PreferenceItem.InfoPreference(
+                    title = stringResource(SYMR.strings.pref_page_translator_info),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.enabled,
+                    title = stringResource(SYMR.strings.pref_page_translator_enabled),
+                    subtitle = stringResource(SYMR.strings.pref_page_translator_enabled_summary),
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.provider,
+                    title = stringResource(SYMR.strings.pref_page_translator_provider),
+                    entries = mapOf(
+                        PageTranslatorPreferences.TranslatorProvider.AUTO to
+                            stringResource(SYMR.strings.pref_page_translator_provider_auto),
+                        PageTranslatorPreferences.TranslatorProvider.ON_DEVICE to
+                            stringResource(SYMR.strings.pref_page_translator_provider_on_device),
+                        PageTranslatorPreferences.TranslatorProvider.DEEPL to
+                            stringResource(SYMR.strings.pref_page_translator_provider_deepl),
+                    ),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.deepLApiKey,
+                    title = stringResource(SYMR.strings.pref_page_translator_deepl_api_key),
+                    enabled = enabled &&
+                        provider != PageTranslatorPreferences.TranslatorProvider.ON_DEVICE,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.deepLApiType,
+                    title = stringResource(SYMR.strings.pref_page_translator_deepl_api_type),
+                    entries = mapOf(
+                        PageTranslatorPreferences.DeepLApiType.FREE to
+                            stringResource(SYMR.strings.pref_page_translator_deepl_free),
+                        PageTranslatorPreferences.DeepLApiType.PRO to
+                            stringResource(SYMR.strings.pref_page_translator_deepl_pro),
+                    ),
+                    enabled = enabled &&
+                        provider != PageTranslatorPreferences.TranslatorProvider.ON_DEVICE,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.sourceLanguage,
+                    title = stringResource(SYMR.strings.pref_page_translator_source_lang),
+                    entries = PageTranslatorPreferences.TranslatorSourceLanguage.entries
+                        .filter { it != PageTranslatorPreferences.TranslatorSourceLanguage.DEFAULT }
+                        .associateWith { lang ->
+                            when (lang) {
+                                PageTranslatorPreferences.TranslatorSourceLanguage.AUTO ->
+                                    stringResource(SYMR.strings.pref_page_translator_lang_auto)
+                                else -> lang.code ?: lang.name
+                            }
+                        },
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.targetLanguage,
+                    title = stringResource(SYMR.strings.pref_page_translator_target_lang),
+                    entries = PageTranslatorPreferences.TranslatorTargetLanguage.entries
+                        .filter { it != PageTranslatorPreferences.TranslatorTargetLanguage.DEFAULT }
+                        .associateWith { it.code },
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.mergeMode,
+                    title = stringResource(SYMR.strings.pref_page_translator_merge_mode),
+                    entries = mapOf(
+                        PageTranslatorPreferences.MergeMode.CONSERVATIVE to
+                            stringResource(SYMR.strings.pref_page_translator_merge_conservative),
+                        PageTranslatorPreferences.MergeMode.STANDARD to
+                            stringResource(SYMR.strings.pref_page_translator_merge_standard),
+                        PageTranslatorPreferences.MergeMode.AGGRESSIVE to
+                            stringResource(SYMR.strings.pref_page_translator_merge_aggressive),
+                    ),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.preloadSize,
+                    title = stringResource(SYMR.strings.pref_page_translator_preload),
+                    entries = listOf(2, 4, 6, 8, 10).associateWith { it.toString() },
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = prefs.cacheSize,
+                    title = stringResource(SYMR.strings.pref_page_translator_cache_size),
+                    entries = listOf(50, 100, 200, 500, 1000).associateWith { "$it MB" },
+                    enabled = enabled,
                 ),
             ),
         )

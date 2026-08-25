@@ -7,6 +7,8 @@ import android.view.LayoutInflater
 import androidx.core.view.isVisible
 import eu.kanade.presentation.util.formattedMessage
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
+import eu.kanade.tachiyomi.data.translator.PageTranslationHelper
+import eu.kanade.tachiyomi.data.translator.PageTranslatorManager
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -31,6 +33,8 @@ import tachiyomi.core.common.util.system.ImageUtil
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.decoder.ImageDecoder
 import tachiyomi.i18n.MR
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import kotlin.math.max
 
 /**
@@ -72,6 +76,10 @@ class PagerPageHolder(
      */
     private var extraLoadJob: Job? = null
 
+    private var translationUpgradeJob: Job? = null
+
+    private val translator: PageTranslatorManager = Injekt.get()
+
     init {
         loadJob = scope.launch { loadPageAndProcessStatus(1) }
         extraLoadJob = scope.launch { loadPageAndProcessStatus(2) }
@@ -87,6 +95,8 @@ class PagerPageHolder(
         loadJob = null
         extraLoadJob?.cancel()
         extraLoadJob = null
+        translationUpgradeJob?.cancel()
+        translationUpgradeJob = null
     }
 
     private fun initProgressIndicator() {
@@ -169,6 +179,13 @@ class PagerPageHolder(
 
         val streamFn = page.stream ?: return
         val streamFn2 = extraPage?.stream
+        val mangaId = viewer.activity.viewModel.manga?.id
+        val transformKey = buildString {
+            if (viewer.config.dualPageSplit) append("split")
+            if (viewer.config.dualPageRotateToFit) append("rotate")
+            if (extraPage != null) append("merge")
+            if (page is InsertPage) append("insert")
+        }
 
         try {
             val (source, isAnimated, background) = withIOContext {
@@ -187,31 +204,43 @@ class PagerPageHolder(
                         }
                         // SY <--
                         val isAnimated = ImageUtil.isAnimatedAndSupported(itemSource)
+                        val translatedSource = if (!isAnimated) {
+                            PageTranslationHelper.maybeReplaceWithTranslation(
+                                manager = translator,
+                                page = page,
+                                mangaId = mangaId,
+                                source = itemSource,
+                                transformKey = transformKey,
+                            )
+                        } else {
+                            itemSource
+                        }
                         val background = if (!isAnimated && viewer.config.automaticBackground) {
-                            ImageUtil.chooseBackground(context, itemSource.peek())
+                            ImageUtil.chooseBackground(context, translatedSource.peek())
                         } else {
                             null
                         }
-                        Triple(itemSource, isAnimated, background)
+                        Triple(translatedSource, isAnimated, background)
                     }
                 }
             }
             withUIContext {
-                setImage(
-                    source,
-                    isAnimated,
-                    Config(
-                        zoomDuration = viewer.config.doubleTapAnimDuration,
-                        minimumScaleType = viewer.config.imageScaleType,
-                        cropBorders = viewer.config.imageCropBorders,
-                        zoomStartPosition = viewer.config.imageZoomType,
-                        landscapeZoom = viewer.config.landscapeZoom,
-                    ),
-                )
-                if (!isAnimated) {
-                    pageBackground = background
+                displayImage(source, isAnimated, background)
+            }
+            if (!isAnimated && mangaId != null) {
+                translationUpgradeJob?.cancel()
+                translationUpgradeJob = scope.launch {
+                    PageTranslationHelper.observeTranslationUpgrade(
+                        manager = translator,
+                        page = page,
+                        mangaId = mangaId,
+                        transformKey = transformKey,
+                    ) { translated ->
+                        withUIContext {
+                            displayImage(translated, isAnimated = false, background = null)
+                        }
+                    }
                 }
-                removeErrorLayout()
             }
         } catch (e: Throwable) {
             logcat(LogPriority.ERROR, e)
@@ -219,6 +248,24 @@ class PagerPageHolder(
                 setError(e)
             }
         }
+    }
+
+    private fun displayImage(source: BufferedSource, isAnimated: Boolean, background: android.graphics.drawable.Drawable?) {
+        setImage(
+            source,
+            isAnimated,
+            Config(
+                zoomDuration = viewer.config.doubleTapAnimDuration,
+                minimumScaleType = viewer.config.imageScaleType,
+                cropBorders = viewer.config.imageCropBorders,
+                zoomStartPosition = viewer.config.imageZoomType,
+                landscapeZoom = viewer.config.landscapeZoom,
+            ),
+        )
+        if (!isAnimated && background != null) {
+            pageBackground = background
+        }
+        removeErrorLayout()
     }
 
     private fun process(page: ReaderPage, imageSource: BufferedSource): BufferedSource {

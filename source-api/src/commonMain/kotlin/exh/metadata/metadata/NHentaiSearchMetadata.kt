@@ -35,6 +35,7 @@ class NHentaiSearchMetadata : RaisedSearchMetadata() {
 
     var coverImageUrl: String? = null
     var pageImagePreviewUrls: List<String> = emptyList()
+    var pageImageUrls: List<String> = emptyList()
 
     var scanlator: String? = null
 

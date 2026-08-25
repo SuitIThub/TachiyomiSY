@@ -18,7 +18,9 @@ plugins {
     id("com.github.ben-manes.versions")
 }
 
-if (gradle.startParameter.taskRequests.toString().contains("Release")) {
+if (gradle.startParameter.taskRequests.toString().contains("Release") &&
+    file("google-services.json").exists()
+) {
     pluginManager.apply {
         apply(libs.plugins.google.services.get().pluginId)
         apply(libs.plugins.firebase.crashlytics.get().pluginId)
@@ -286,6 +288,9 @@ dependencies {
 
     // String similarity
     implementation(libs.stringSimilarity)
+
+    // Page translator (OCR + on-device translation)
+    implementation(libs.bundles.mlkit.page.translator)
 
     // Tests
     testImplementation(libs.bundles.test)

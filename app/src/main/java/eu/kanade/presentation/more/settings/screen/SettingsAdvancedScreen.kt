@@ -74,6 +74,7 @@ import exh.source.BlacklistedSources
 import exh.source.EH_SOURCE_ID
 import exh.source.EXH_SOURCE_ID
 import exh.source.ExhPreferences
+import exh.source.NHENTAI_SOURCE_ID
 import exh.util.toAnnotatedString
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -746,9 +747,11 @@ object SettingsAdvancedScreen : SearchableSettings {
                         if (it) {
                             BlacklistedSources.HIDDEN_SOURCES += EH_SOURCE_ID
                             BlacklistedSources.HIDDEN_SOURCES += EXH_SOURCE_ID
+                            BlacklistedSources.HIDDEN_SOURCES += NHENTAI_SOURCE_ID
                         } else {
                             BlacklistedSources.HIDDEN_SOURCES -= EH_SOURCE_ID
                             BlacklistedSources.HIDDEN_SOURCES -= EXH_SOURCE_ID
+                            BlacklistedSources.HIDDEN_SOURCES -= NHENTAI_SOURCE_ID
                         }
                         true
                     },

@@ -7,11 +7,13 @@ import androidx.compose.material.icons.outlined.FormatListNumbered
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import eu.kanade.tachiyomi.R
@@ -44,6 +46,8 @@ fun ReaderBottomBar(
     onClickShare: (() -> Unit)?,
     onClickPageLayout: () -> Unit,
     onClickShiftPage: () -> Unit,
+    pageTranslatorEnabled: Boolean = false,
+    onClickPageTranslator: (() -> Unit)? = null,
     // SY <--
     modifier: Modifier = Modifier,
 ) {
@@ -142,6 +146,20 @@ fun ReaderBottomBar(
                 Icon(
                     painter = painterResource(R.drawable.ic_page_next_outline_24dp),
                     contentDescription = stringResource(SYMR.strings.shift_double_pages),
+                )
+            }
+        }
+
+        if (ReaderBottomButton.PageTranslator.isIn(enabledButtons) && onClickPageTranslator != null) {
+            IconButton(onClick = onClickPageTranslator) {
+                Icon(
+                    imageVector = Icons.Outlined.Translate,
+                    contentDescription = stringResource(SYMR.strings.action_toggle_page_translator),
+                    tint = if (pageTranslatorEnabled) {
+                        androidx.compose.material3.MaterialTheme.colorScheme.primary
+                    } else {
+                        Color.Unspecified
+                    },
                 )
             }
         }

@@ -69,6 +69,7 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.coil.TachiyomiImageDecoder
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
+import eu.kanade.tachiyomi.data.translator.PageTranslatorPreferences
 import eu.kanade.tachiyomi.databinding.ReaderActivityBinding
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -155,6 +156,7 @@ class ReaderActivity : BaseActivity() {
     }
 
     private val readerPreferences = Injekt.get<ReaderPreferences>()
+    private val pageTranslatorPreferences = Injekt.get<PageTranslatorPreferences>()
     private val preferences = Injekt.get<BasePreferences>()
 
     lateinit var binding: ReaderActivityBinding
@@ -591,6 +593,17 @@ class ReaderActivity : BaseActivity() {
             readerPreferences.readerBottomButtons.changes()
         }.collectAsState(emptySet())
         val dualPageSplitPaged by readerPreferences.dualPageSplitPaged.collectAsState()
+        val mangaIdForTranslator = state.manga?.id
+        val pageTranslatorModePref = remember(mangaIdForTranslator) {
+            pageTranslatorPreferences.mangaMode(mangaIdForTranslator ?: 0L)
+        }
+        val pageTranslatorMode by pageTranslatorModePref.collectAsState()
+        val pageTranslatorGlobal by pageTranslatorPreferences.enabled.collectAsState()
+        val pageTranslatorEnabled = mangaIdForTranslator != null && when (pageTranslatorMode) {
+            PageTranslatorPreferences.MangaTranslatorMode.DEFAULT -> pageTranslatorGlobal
+            PageTranslatorPreferences.MangaTranslatorMode.ON -> true
+            PageTranslatorPreferences.MangaTranslatorMode.OFF -> false
+        }
         // SY <--
 
         val verticalNavigatorModes by readerPreferences.verticalNavigator.collectAsState()
@@ -688,6 +701,14 @@ class ReaderActivity : BaseActivity() {
                 }
             },
             onClickShiftPage = ::shiftDoublePages,
+            pageTranslatorEnabled = pageTranslatorEnabled,
+            onClickPageTranslator = {
+                val id = viewModel.manga?.id ?: return@ReaderAppBars
+                pageTranslatorPreferences.toggleForManga(id)
+                val enabled = pageTranslatorPreferences.isEnabledForManga(id)
+                menuToggleToast?.cancel()
+                menuToggleToast = toast(if (enabled) MR.strings.on else MR.strings.off)
+            },
             // SY <--
         )
     }

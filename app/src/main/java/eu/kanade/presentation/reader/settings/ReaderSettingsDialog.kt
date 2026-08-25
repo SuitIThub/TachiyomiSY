@@ -16,6 +16,7 @@ import eu.kanade.presentation.components.TabbedDialog
 import eu.kanade.presentation.components.TabbedDialogPaddings
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
@@ -28,6 +29,7 @@ fun ReaderSettingsDialog(
     val tabTitles = listOf(
         stringResource(MR.strings.pref_category_reading_mode),
         stringResource(MR.strings.pref_category_general),
+        stringResource(SYMR.strings.pref_category_page_translator),
         stringResource(MR.strings.custom_filter),
     )
     val pagerState = rememberPagerState { tabTitles.size }
@@ -45,7 +47,7 @@ fun ReaderSettingsDialog(
             val window = (LocalView.current.parent as? DialogWindowProvider)?.window
 
             LaunchedEffect(pagerState.currentPage) {
-                if (pagerState.currentPage == 2) {
+                if (pagerState.currentPage == 3) {
                     window?.setDimAmount(0f)
                     onHideMenus()
                 } else {
@@ -62,7 +64,8 @@ fun ReaderSettingsDialog(
                 when (page) {
                     0 -> ReadingModePage(screenModel)
                     1 -> GeneralPage(screenModel)
-                    2 -> ColorFilterPage(screenModel)
+                    2 -> PageTranslatorPage(screenModel)
+                    3 -> ColorFilterPage(screenModel)
                 }
             }
         }

@@ -3,6 +3,9 @@ package eu.kanade.tachiyomi.ui.reader.loader
 import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.data.cache.ChapterCache
 import eu.kanade.tachiyomi.data.database.models.toDomainChapter
+import eu.kanade.tachiyomi.data.translator.PageTranslationHelper
+import eu.kanade.tachiyomi.data.translator.PageTranslatorManager
+import eu.kanade.tachiyomi.data.translator.PageTranslatorPreferences
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.online.HttpSource
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
@@ -43,6 +46,8 @@ internal class HttpPageLoader(
     private val readerPreferences: ReaderPreferences = Injekt.get(),
     sourcePreferences: SourcePreferences = Injekt.get(),
     // SY <--
+    private val translator: PageTranslatorManager = Injekt.get(),
+    private val translatorPreferences: PageTranslatorPreferences = Injekt.get(),
 ) : PageLoader() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -170,6 +175,7 @@ internal class HttpPageLoader(
         super.recycle()
         scope.cancel()
         queue.clear()
+        translator.cancelChapterWork()
 
         // Cache current page list progress for online chapters to allow a faster reopen
         chapter.pages?.let { pages ->
@@ -230,6 +236,26 @@ internal class HttpPageLoader(
 
             page.stream = { chapterCache.getImageFile(imageUrl).inputStream() }
             page.status = Page.State.Ready
+
+            // Prefetch page translation for upcoming pages when enabled
+            val mangaId = chapter.chapter.manga_id
+            if (mangaId != null && translator.isEnabled(mangaId)) {
+                val preload = translatorPreferences.preloadSize.get()
+                val pages = chapter.pages
+                if (pages != null && preload > 0) {
+                    PageTranslationHelper.enqueueAdjacentPreload(
+                        manager = translator,
+                        pages = pages,
+                        currentIndex = page.index,
+                        mangaId = mangaId,
+                        preloadCount = preload,
+                    ) { candidate ->
+                        val url = candidate.imageUrl ?: return@enqueueAdjacentPreload null
+                        if (!chapterCache.isImageInCache(url)) return@enqueueAdjacentPreload null
+                        runCatching { chapterCache.getImageFile(url).readBytes() }.getOrNull()
+                    }
+                }
+            }
         } catch (e: Throwable) {
             page.status = Page.State.Error(e)
             if (e is CancellationException) {

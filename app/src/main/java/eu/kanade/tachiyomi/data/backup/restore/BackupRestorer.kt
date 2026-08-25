@@ -18,10 +18,9 @@ import eu.kanade.tachiyomi.data.backup.restore.restorers.SavedSearchRestorer
 import eu.kanade.tachiyomi.data.download.DownloadCache
 import eu.kanade.tachiyomi.util.system.createFileInCacheDir
 import exh.source.MERGED_SOURCE_ID
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import logcat.LogPriority
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
@@ -34,10 +33,10 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.incrementAndFetch
+import kotlin.coroutines.coroutineContext
 
 @OptIn(ExperimentalAtomicApi::class)
 class BackupRestorer(
@@ -57,7 +56,7 @@ class BackupRestorer(
 
     private var restoreAmount = 0
     private val restoreProgress = AtomicInt(0)
-    private val errors = CopyOnWriteArrayList<Pair<Date, String>>()
+    private val errors = mutableListOf<Pair<Date, String>>()
 
     /**
      * Mapping of source ID to source name from backup data
@@ -119,9 +118,13 @@ class BackupRestorer(
             restoreAmount += 1
         }
 
+        // Run sequentially so SQLite writers do not contend (SQLITE_BUSY / "database is locked").
         coroutineScope {
             if (options.categories) {
                 restoreCategories(backup.backupCategories)
+            }
+            if (options.libraryEntries) {
+                restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
             }
             // SY -->
             if (options.savedSearches) {
@@ -134,9 +137,6 @@ class BackupRestorer(
             if (options.sourceSettings) {
                 restoreSourcePreferences(backup.backupSourcePreferences)
             }
-            if (options.libraryEntries) {
-                restoreManga(backup.backupManga, if (options.categories) backup.backupCategories else emptyList())
-            }
             if (options.extensionStores) {
                 restoreExtensionStores(backup.backupExtensionStores)
             }
@@ -145,8 +145,8 @@ class BackupRestorer(
         }
     }
 
-    private fun CoroutineScope.restoreCategories(backupCategories: List<BackupCategory>) = launch {
-        ensureActive()
+    private suspend fun restoreCategories(backupCategories: List<BackupCategory>) {
+        coroutineContext.ensureActive()
         categoriesRestorer(backupCategories)
 
         val progress = restoreProgress.incrementAndFetch()
@@ -159,8 +159,8 @@ class BackupRestorer(
     }
 
     // SY -->
-    private fun CoroutineScope.restoreSavedSearches(backupSavedSearches: List<BackupSavedSearch>) = launch {
-        ensureActive()
+    private suspend fun restoreSavedSearches(backupSavedSearches: List<BackupSavedSearch>) {
+        coroutineContext.ensureActive()
         savedSearchRestorer.restoreSavedSearches(backupSavedSearches)
 
         val progress = restoreProgress.incrementAndFetch()
@@ -173,20 +173,21 @@ class BackupRestorer(
     }
     // SY <--
 
-    private fun CoroutineScope.restoreManga(
+    private suspend fun restoreManga(
         backupMangas: List<BackupManga>,
         backupCategories: List<BackupCategory>,
-    ) = launch {
+    ) {
         mangaRestorer.sortByNew(backupMangas)
             /* SY --> */.sortedBy { it.source == MERGED_SOURCE_ID } /* SY <-- */
             .chunked(100)
             .forEach { chunk ->
+                coroutineContext.ensureActive()
                 database.transaction {
                     chunk.forEach {
-                        ensureActive()
-
                         try {
                             mangaRestorer.restore(it, backupCategories)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             val sourceName = sourceMapping[it.source] ?: it.source.toString()
                             errors.add(Date() to "${it.title} [$sourceName]: ${e.message}")
@@ -199,11 +200,11 @@ class BackupRestorer(
             }
     }
 
-    private fun CoroutineScope.restoreAppPreferences(
+    private suspend fun restoreAppPreferences(
         preferences: List<BackupPreference>,
         categories: List<BackupCategory>?,
-    ) = launch {
-        ensureActive()
+    ) {
+        coroutineContext.ensureActive()
         preferenceRestorer.restoreApp(
             preferences,
             categories,
@@ -218,8 +219,8 @@ class BackupRestorer(
         )
     }
 
-    private fun CoroutineScope.restoreSourcePreferences(preferences: List<BackupSourcePreferences>) = launch {
-        ensureActive()
+    private suspend fun restoreSourcePreferences(preferences: List<BackupSourcePreferences>) {
+        coroutineContext.ensureActive()
         preferenceRestorer.restoreSource(preferences)
 
         val progress = restoreProgress.incrementAndFetch()
@@ -231,18 +232,19 @@ class BackupRestorer(
         )
     }
 
-    private fun CoroutineScope.restoreExtensionStores(
+    private suspend fun restoreExtensionStores(
         backupExtensionStores: List<BackupExtensionStore>,
-    ) = launch {
+    ) {
         backupExtensionStores
             .chunked(100)
             .forEach { chunk ->
+                coroutineContext.ensureActive()
                 database.transaction {
                     chunk.forEach {
-                        ensureActive()
-
                         try {
                             extensionStoreRestorer(it)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             errors.add(Date() to "Error Adding Repo: ${it.name} : ${e.message}")
                         }

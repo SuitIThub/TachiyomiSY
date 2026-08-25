@@ -4,6 +4,7 @@ import androidx.core.graphics.toColorInt
 import exh.metadata.metadata.base.RaisedTag
 import exh.source.EH_SOURCE_ID
 import exh.source.EXH_SOURCE_ID
+import exh.source.NHENTAI_SOURCE_ID
 import exh.source.PURURIN_SOURCE_ID
 import exh.source.TSUMINO_SOURCE_ID
 import exh.source.lanraragiSourceIds
@@ -21,6 +22,7 @@ object SourceTagsUtil {
         return if (
             sourceId == EXH_SOURCE_ID ||
             sourceId == EH_SOURCE_ID ||
+            sourceId == NHENTAI_SOURCE_ID ||
             sourceId in nHentaiSourceIds ||
             sourceId in mangaDexSourceIds ||
             sourceId == PURURIN_SOURCE_ID ||
@@ -33,11 +35,13 @@ object SourceTagsUtil {
                 else -> null
             }
             if (parsed?.namespace != null) {
-                when (sourceId) {
-                    in nHentaiSourceIds -> wrapTagNHentai(parsed.namespace!!, parsed.name.substringBefore('|').trim())
-                    in mangaDexSourceIds -> parsed.name
-                    PURURIN_SOURCE_ID -> parsed.name.substringBefore('|').trim()
-                    TSUMINO_SOURCE_ID -> wrapTagTsumino(parsed.namespace!!, parsed.name.substringBefore('|').trim())
+                when {
+                    sourceId == NHENTAI_SOURCE_ID || sourceId in nHentaiSourceIds ->
+                        wrapTagNHentai(parsed.namespace!!, parsed.name.substringBefore('|').trim())
+                    sourceId in mangaDexSourceIds -> parsed.name
+                    sourceId == PURURIN_SOURCE_ID -> parsed.name.substringBefore('|').trim()
+                    sourceId == TSUMINO_SOURCE_ID ->
+                        wrapTagTsumino(parsed.namespace!!, parsed.name.substringBefore('|').trim())
                     else -> wrapTag(parsed.namespace!!, parsed.name.substringBefore('|').trim())
                 }
             } else {

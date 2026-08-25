@@ -91,6 +91,7 @@ import exh.log.DebugModeOverlay
 import exh.source.BlacklistedSources
 import exh.source.EH_SOURCE_ID
 import exh.source.EXH_SOURCE_ID
+import exh.source.NHENTAI_SOURCE_ID
 import exh.source.ExhPreferences
 import exh.syDebugVersion
 import kotlinx.coroutines.channels.awaitClose
@@ -342,6 +343,7 @@ class MainActivity : BaseActivity() {
         if (!exhPreferences.isHentaiEnabled.get()) {
             BlacklistedSources.HIDDEN_SOURCES += EH_SOURCE_ID
             BlacklistedSources.HIDDEN_SOURCES += EXH_SOURCE_ID
+            BlacklistedSources.HIDDEN_SOURCES += NHENTAI_SOURCE_ID
         }
         // SY -->
     }

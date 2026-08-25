@@ -21,10 +21,18 @@ object BlacklistedSources {
         6140480779421365791,
     )
 
-    val BLACKLISTED_EXT_SOURCES = EHENTAI_EXT_SOURCES
+    // Language-specific community NHentai sources (the "all" ID is the native source).
+    val NHENTAI_EXT_SOURCES = longArrayOf(
+        3122156392225024195L, // en
+        4726175775739752699L, // ja
+        2203215402871965477L, // zh
+    )
+
+    val BLACKLISTED_EXT_SOURCES = EHENTAI_EXT_SOURCES + NHENTAI_EXT_SOURCES
 
     val BLACKLISTED_EXTENSIONS = arrayOf(
         "eu.kanade.tachiyomi.extension.all.ehentai",
+        "eu.kanade.tachiyomi.extension.all.nhentai",
     )
 
     var HIDDEN_SOURCES = setOf(
