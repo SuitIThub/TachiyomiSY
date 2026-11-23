@@ -768,4 +768,8 @@
     <string name="pref_page_translator_info">Uses on-device OCR. DeepL improves translation quality when an API key is set. With source language set to Auto, the app infers it from manga metadata (language, tags, title, description, source). Use Standard/Aggressive text grouping if sentences are split across boxes. Stylized manga fonts may reduce accuracy.</string>
     <string name="action_toggle_page_translator">Toggle page translator</string>
     <string name="page_translator_models_downloading">Downloading translation models…</string>
+    <string name="pref_ignore_read_chapters_on_update">Keep read state of re-added chapters on update</string>
+    <string name="pref_ignore_read_chapters_on_update_nothing">Don\'t ignore anything</string>
+    <string name="pref_ignore_read_chapters_on_update_existing">Only previously read chapters</string>
+    <string name="pref_ignore_read_chapters_on_update_before_unread">Everything before the unread block</string>
 </resources>

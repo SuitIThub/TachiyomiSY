@@ -181,6 +181,10 @@ class SyncChaptersWithSource(
         val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead.get()
             .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_NEW)
 
+        // SY -->
+        val shouldIgnoreAsRead = getIgnoreReadChapterPredicate(dbChapters, readChapterNumbers)
+        // SY <--
+
         // Date fetch is set in such a way that the upper ones will have bigger value than the lower ones
         // Sources MUST return the chapters from most to less recent, which is common.
         var itemCount = newChapters.size
@@ -192,10 +196,17 @@ class SyncChaptersWithSource(
                 chapter = chapter.copy(read = true)
             }
 
+            // SY -->
+            if (chapter.isRecognizedNumber && shouldIgnoreAsRead(chapter.chapterNumber)) {
+                changedOrDuplicateReadUrls.add(chapter.url)
+                chapter = chapter.copy(read = true)
+            }
+            // SY <--
+
             if (!chapter.isRecognizedNumber || chapter.chapterNumber !in deletedChapterNumbers) return@map chapter
 
             chapter = chapter.copy(
-                read = chapter.chapterNumber in deletedReadChapterNumbers,
+                read = /* SY --> */ chapter.read || /* SY <-- */ chapter.chapterNumber in deletedReadChapterNumbers,
                 bookmark = chapter.chapterNumber in deletedBookmarkedChapterNumbers,
             )
 
@@ -250,4 +261,43 @@ class SyncChaptersWithSource(
 
         return updatedToAdd.filterNot { it.url in changedOrDuplicateReadUrls || it.scanlator in excludedScanlators }
     }
+
+    // SY -->
+    /**
+     * Returns a predicate deciding whether a newly added chapter with the given chapter number
+     * should directly be marked as read, based on [LibraryPreferences.ignoreReadChaptersOnUpdate].
+     *
+     * @param dbChapters the chapters of the entry before this update (including removed ones).
+     * @param readChapterNumbers the recognized chapter numbers of all read [dbChapters].
+     */
+    private fun getIgnoreReadChapterPredicate(
+        dbChapters: List<Chapter>,
+        readChapterNumbers: Set<Double>,
+    ): (Double) -> Boolean {
+        val ignoreNothing: (Double) -> Boolean = { false }
+        when (libraryPreferences.ignoreReadChaptersOnUpdate.get()) {
+            LibraryPreferences.IgnoreReadChaptersOnUpdate.Nothing -> return ignoreNothing
+            LibraryPreferences.IgnoreReadChaptersOnUpdate.ExistingRead -> return { it in readChapterNumbers }
+            LibraryPreferences.IgnoreReadChaptersOnUpdate.BeforeUnreadBlock -> {
+                val maxRead = readChapterNumbers.maxOrNull() ?: return ignoreNothing
+                val unreadChapterNumbers = dbChapters
+                    .asSequence()
+                    .filter { !it.read && it.isRecognizedNumber }
+                    .map { it.chapterNumber }
+                    .toSet()
+                // First chapter of the unread block following the last read chapter
+                val unreadBlockStart = unreadChapterNumbers.filter { it > maxRead }.minOrNull()
+
+                fun isBeforeUnreadBlock(number: Double): Boolean =
+                    if (unreadBlockStart != null) number < unreadBlockStart else number <= maxRead
+
+                // Chapters that were intentionally left unread keep their unread state
+                return { number ->
+                    isBeforeUnreadBlock(number) &&
+                        (number in readChapterNumbers || number !in unreadChapterNumbers)
+                }
+            }
+        }
+    }
+    // SY <--
 }
