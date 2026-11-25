@@ -271,6 +271,20 @@ object SettingsLibraryScreen : SearchableSettings {
                     ),
                     title = stringResource(MR.strings.pref_mark_duplicate_read_chapter_read),
                 ),
+                // SY -->
+                Preference.PreferenceItem.ListPreference(
+                    preference = libraryPreferences.ignoreReadChaptersOnUpdate,
+                    entries = mapOf(
+                        LibraryPreferences.IgnoreReadChaptersOnUpdate.Nothing to
+                            stringResource(SYMR.strings.pref_ignore_read_chapters_on_update_nothing),
+                        LibraryPreferences.IgnoreReadChaptersOnUpdate.ExistingRead to
+                            stringResource(SYMR.strings.pref_ignore_read_chapters_on_update_existing),
+                        LibraryPreferences.IgnoreReadChaptersOnUpdate.BeforeUnreadBlock to
+                            stringResource(SYMR.strings.pref_ignore_read_chapters_on_update_before_unread),
+                    ),
+                    title = stringResource(SYMR.strings.pref_ignore_read_chapters_on_update),
+                ),
+                // SY <--
             ),
         )
     }

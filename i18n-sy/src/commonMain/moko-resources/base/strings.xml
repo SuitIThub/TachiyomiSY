@@ -785,4 +785,9 @@
     <string name="ai_search_not_configured">Set an OpenRouter API key under Settings → E-Hentai → AI search</string>
     <string name="ai_search_failed">AI search failed: %1$s</string>
     <string name="ai_search_generated">Searching: %1$s</string>
+
+    <string name="pref_ignore_read_chapters_on_update">Keep read state of re-added chapters on update</string>
+    <string name="pref_ignore_read_chapters_on_update_nothing">Don\'t ignore anything</string>
+    <string name="pref_ignore_read_chapters_on_update_existing">Only previously read chapters</string>
+    <string name="pref_ignore_read_chapters_on_update_before_unread">Everything before the unread block</string>
 </resources>

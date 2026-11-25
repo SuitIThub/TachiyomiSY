@@ -68,6 +68,13 @@ class LibraryPreferences(
         emptySet(),
     )
 
+    // SY -->
+    val ignoreReadChaptersOnUpdate: Preference<IgnoreReadChaptersOnUpdate> = preferenceStore.getEnum(
+        "pref_ignore_read_chapters_on_update",
+        IgnoreReadChaptersOnUpdate.Nothing,
+    )
+    // SY <--
+
     // region Filter
 
     val filterDownloaded: Preference<TriState> = preferenceStore.getEnum(
@@ -221,6 +228,23 @@ class LibraryPreferences(
     )
 
     // endregion
+
+    // SY -->
+    /**
+     * Controls which chapters that are (re-)added during an entry update are directly marked as read
+     * instead of being shown as new and unread.
+     */
+    enum class IgnoreReadChaptersOnUpdate {
+        /** Every added chapter is marked as unread (default behaviour). */
+        Nothing,
+
+        /** Only chapters that did not exist before stay unread; re-added already read chapters stay read. */
+        ExistingRead,
+
+        /** Every added chapter that lies before the unread block of the entry is marked as read. */
+        BeforeUnreadBlock,
+    }
+    // SY <--
 
     enum class ChapterSwipeAction {
         ToggleRead,
