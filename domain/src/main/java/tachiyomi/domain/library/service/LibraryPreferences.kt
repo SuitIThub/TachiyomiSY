@@ -230,6 +230,7 @@ class LibraryPreferences(
     // endregion
 
     // SY -->
+
     /**
      * Controls which chapters that are (re-)added during an entry update are directly marked as read
      * instead of being shown as new and unread.

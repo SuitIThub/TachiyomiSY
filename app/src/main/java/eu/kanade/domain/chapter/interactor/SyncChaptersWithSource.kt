@@ -263,38 +263,51 @@ class SyncChaptersWithSource(
     }
 
     // SY -->
-    /**
-     * Returns a predicate deciding whether a newly added chapter with the given chapter number
-     * should directly be marked as read, based on [LibraryPreferences.ignoreReadChaptersOnUpdate].
-     *
-     * @param dbChapters the chapters of the entry before this update (including removed ones).
-     * @param readChapterNumbers the recognized chapter numbers of all read [dbChapters].
-     */
+
     private fun getIgnoreReadChapterPredicate(
         dbChapters: List<Chapter>,
         readChapterNumbers: Set<Double>,
-    ): (Double) -> Boolean {
-        val ignoreNothing: (Double) -> Boolean = { false }
-        when (libraryPreferences.ignoreReadChaptersOnUpdate.get()) {
-            LibraryPreferences.IgnoreReadChaptersOnUpdate.Nothing -> return ignoreNothing
-            LibraryPreferences.IgnoreReadChaptersOnUpdate.ExistingRead -> return { it in readChapterNumbers }
-            LibraryPreferences.IgnoreReadChaptersOnUpdate.BeforeUnreadBlock -> {
-                val maxRead = readChapterNumbers.maxOrNull() ?: return ignoreNothing
-                val unreadChapterNumbers = dbChapters
-                    .asSequence()
-                    .filter { !it.read && it.isRecognizedNumber }
-                    .map { it.chapterNumber }
-                    .toSet()
-                // First chapter of the unread block following the last read chapter
-                val unreadBlockStart = unreadChapterNumbers.filter { it > maxRead }.minOrNull()
+    ): (Double) -> Boolean = ignoreReadChapterPredicate(
+        mode = libraryPreferences.ignoreReadChaptersOnUpdate.get(),
+        dbChapters = dbChapters,
+        readChapterNumbers = readChapterNumbers,
+    )
 
-                fun isBeforeUnreadBlock(number: Double): Boolean =
-                    if (unreadBlockStart != null) number < unreadBlockStart else number <= maxRead
+    companion object {
+        /**
+         * Returns a predicate deciding whether a newly added chapter with the given chapter number
+         * should directly be marked as read, based on [LibraryPreferences.ignoreReadChaptersOnUpdate].
+         *
+         * @param dbChapters the chapters of the entry before this update (including removed ones).
+         * @param readChapterNumbers the recognized chapter numbers of all read [dbChapters].
+         */
+        internal fun ignoreReadChapterPredicate(
+            mode: LibraryPreferences.IgnoreReadChaptersOnUpdate,
+            dbChapters: List<Chapter>,
+            readChapterNumbers: Set<Double>,
+        ): (Double) -> Boolean {
+            val ignoreNothing: (Double) -> Boolean = { false }
+            when (mode) {
+                LibraryPreferences.IgnoreReadChaptersOnUpdate.Nothing -> return ignoreNothing
+                LibraryPreferences.IgnoreReadChaptersOnUpdate.ExistingRead -> return { it in readChapterNumbers }
+                LibraryPreferences.IgnoreReadChaptersOnUpdate.BeforeUnreadBlock -> {
+                    val maxRead = readChapterNumbers.maxOrNull() ?: return ignoreNothing
+                    val unreadChapterNumbers = dbChapters
+                        .asSequence()
+                        .filter { !it.read && it.isRecognizedNumber }
+                        .map { it.chapterNumber }
+                        .toSet()
+                    // First chapter of the unread block following the last read chapter
+                    val unreadBlockStart = unreadChapterNumbers.filter { it > maxRead }.minOrNull()
 
-                // Chapters that were intentionally left unread keep their unread state
-                return { number ->
-                    isBeforeUnreadBlock(number) &&
-                        (number in readChapterNumbers || number !in unreadChapterNumbers)
+                    fun isBeforeUnreadBlock(number: Double): Boolean =
+                        if (unreadBlockStart != null) number < unreadBlockStart else number <= maxRead
+
+                    // Chapters that were intentionally left unread keep their unread state
+                    return { number ->
+                        isBeforeUnreadBlock(number) &&
+                            (number in readChapterNumbers || number !in unreadChapterNumbers)
+                    }
                 }
             }
         }
