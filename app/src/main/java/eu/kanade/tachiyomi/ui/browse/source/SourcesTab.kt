@@ -21,9 +21,11 @@ import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreen
 import eu.kanade.tachiyomi.ui.browse.source.browse.BrowseSourceScreenModel.Listing
 import eu.kanade.tachiyomi.ui.browse.source.feed.SourceFeedScreen
 import eu.kanade.tachiyomi.ui.browse.source.globalsearch.GlobalSearchScreen
+import exh.source.supportsBrowseFeed
 import exh.ui.smartsearch.SmartSearchScreen
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import tachiyomi.domain.source.interactor.GetRemoteManga
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.i18n.stringResource
@@ -71,6 +73,8 @@ fun Screen.sourcesTab(
                     // SY -->
                     val screen = when {
                         smartSearchConfig != null -> SmartSearchScreen(source.id, smartSearchConfig)
+                        source.id.supportsBrowseFeed() && listing == Listing.Popular ->
+                            BrowseSourceScreen(source.id, GetRemoteManga.QUERY_FEED)
                         listing == Listing.Popular && screenModel.useNewSourceNavigation -> SourceFeedScreen(source.id)
                         else -> BrowseSourceScreen(source.id, listing.query)
                     }

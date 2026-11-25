@@ -231,6 +231,8 @@
     <string name="thumbnail_url_hint">Vorschaubild-URL: %1$s</string>
     <string name="save_search_hint">Name der Suche</string>
     <string name="feed">Feed</string>
+    <string name="browse_feed_empty">Speichere einen Suchfilter, um ihn im Feed zu verwenden</string>
+    <string name="browse_feed_last_visit">Letzter Besuch</string>
     <string name="tag_sorting">Tag-Sortierung</string>
     <string name="invalid_category_name">Ungültiger Kategoriename</string>
     <string name="action_edit_tags">Tags bearbeiten</string>

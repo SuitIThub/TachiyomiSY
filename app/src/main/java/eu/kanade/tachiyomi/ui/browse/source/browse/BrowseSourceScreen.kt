@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.NewReleases
+import androidx.compose.material.icons.outlined.RssFeed
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -21,6 +22,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +35,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.paging.LoadState
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
@@ -43,6 +47,8 @@ import eu.kanade.presentation.browse.components.RemoveMangaDialog
 import eu.kanade.presentation.browse.components.SavedSearchCreateDialog
 import eu.kanade.presentation.browse.components.SavedSearchDeleteDialog
 import eu.kanade.presentation.category.components.ChangeCategoryDialog
+import eu.kanade.presentation.components.SuggestionChip
+import eu.kanade.presentation.components.SuggestionChipDefaults
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.Screen
@@ -62,12 +68,16 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import mihon.presentation.core.util.collectAsLazyPagingItems
 import tachiyomi.core.common.Constants
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.EmptyScreen
+import tachiyomi.presentation.core.screens.EmptyScreenAction
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.source.local.LocalSource
 
@@ -145,6 +155,14 @@ data class BrowseSourceScreen(
             assistUrl = (screenModel.source as? HttpSource)?.getHomeUrl()
         }
 
+        // SY -->
+        DisposableEffect(Unit) {
+            onDispose {
+                screenModel.saveFeedWatermark()
+            }
+        }
+        // SY <--
+
         Scaffold(
             topBar = {
                 Column(
@@ -171,6 +189,25 @@ data class BrowseSourceScreen(
                             .padding(horizontal = MaterialTheme.padding.small),
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                     ) {
+                        // SY -->
+                        if (screenModel.supportsBrowseFeed) {
+                            FilterChip(
+                                selected = state.listing is Listing.Feed,
+                                onClick = screenModel::openFeed,
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.RssFeed,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(FilterChipDefaults.IconSize),
+                                    )
+                                },
+                                label = {
+                                    Text(text = stringResource(SYMR.strings.feed))
+                                },
+                            )
+                        }
+                        // SY <--
                         FilterChip(
                             selected = state.listing == Listing.Popular,
                             onClick = {
@@ -236,39 +273,114 @@ data class BrowseSourceScreen(
                         }
                     }
 
+                    // SY -->
+                    if (state.listing is Listing.Feed && state.savedSearches.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = MaterialTheme.padding.small)
+                                .padding(bottom = MaterialTheme.padding.extraSmall),
+                            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
+                        ) {
+                            val selectedId = (state.listing as? Listing.Feed)?.savedSearchId
+                            state.savedSearches.forEach { search ->
+                                val selected = search.id == selectedId
+                                SuggestionChip(
+                                    onClick = {
+                                        if (search.filterList == null && state.filters.isNotEmpty()) {
+                                            context.toast(SYMR.strings.save_search_invalid)
+                                        } else {
+                                            screenModel.setFeedSavedSearch(search)
+                                        }
+                                    },
+                                    onLongClick = { screenModel.onSavedSearchPress(search) },
+                                    label = {
+                                        Text(
+                                            text = search.name,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = if (selected) {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                        },
+                                        labelColor = if (selected) {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                    // SY <--
+
                     HorizontalDivider()
                 }
             },
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         ) { paddingValues ->
-            BrowseSourceContent(
-                source = screenModel.source,
-                mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems(),
-                columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
-                // SY -->
-                ehentaiBrowseDisplayMode = screenModel.ehentaiBrowseDisplayMode,
-                // SY <--
-                displayMode = screenModel.displayMode,
-                snackbarHostState = snackbarHostState,
-                contentPadding = paddingValues,
-                onWebViewClick = onWebViewClick,
-                onHelpClick = { uriHandler.openUri(Constants.URL_HELP) },
-                onLocalSourceHelpClick = onHelpClick,
-                onMangaClick = { navigator.push(MangaScreen(it.id, true, smartSearchConfig)) },
-                onMangaLongClick = { manga ->
-                    scope.launchIO {
-                        val duplicates = screenModel.getDuplicateLibraryManga(manga)
-                        when {
-                            manga.favorite -> screenModel.setDialog(BrowseSourceScreenModel.Dialog.RemoveManga(manga))
-                            duplicates.isNotEmpty() -> screenModel.setDialog(
-                                BrowseSourceScreenModel.Dialog.AddDuplicateManga(manga, duplicates),
-                            )
-                            else -> screenModel.addFavorite(manga)
-                        }
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            // SY -->
+            if (state.listing is Listing.Feed && !state.hasFeedSavedSearches) {
+                EmptyScreen(
+                    stringRes = SYMR.strings.browse_feed_empty,
+                    modifier = Modifier.padding(paddingValues),
+                    actions = listOf(
+                        EmptyScreenAction(
+                            stringRes = MR.strings.action_filter,
+                            icon = Icons.Outlined.FilterList,
+                            onClick = screenModel::openFilterSheet,
+                        ),
+                    ),
+                )
+            } else if (state.listing is Listing.Feed && (state.listing as Listing.Feed).savedSearchId < 0) {
+                LoadingScreen(modifier = Modifier.padding(paddingValues))
+            } else {
+                val mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
+                LaunchedEffect(mangaList.loadState.refresh, mangaList.itemCount, state.listing) {
+                    if (
+                        state.listing is Listing.Feed &&
+                        mangaList.loadState.refresh is LoadState.NotLoading &&
+                        mangaList.itemCount > 0
+                    ) {
+                        val first = mangaList.peek(0)?.value?.first?.url
+                        screenModel.onFeedFirstItemLoaded(first)
                     }
-                },
-            )
+                }
+                BrowseSourceContent(
+                    source = screenModel.source,
+                    mangaList = mangaList,
+                    columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
+                    ehentaiBrowseDisplayMode = screenModel.ehentaiBrowseDisplayMode,
+                    displayMode = screenModel.displayMode,
+                    snackbarHostState = snackbarHostState,
+                    contentPadding = paddingValues,
+                    lastSeenUrl = (state.listing as? Listing.Feed)?.let { state.lastSeenUrl },
+                    onWebViewClick = onWebViewClick,
+                    onHelpClick = { uriHandler.openUri(Constants.URL_HELP) },
+                    onLocalSourceHelpClick = onHelpClick,
+                    onMangaClick = { navigator.push(MangaScreen(it.id, true, smartSearchConfig)) },
+                    onMangaLongClick = { manga ->
+                        scope.launchIO {
+                            val duplicates = screenModel.getDuplicateLibraryManga(manga)
+                            when {
+                                manga.favorite -> screenModel.setDialog(BrowseSourceScreenModel.Dialog.RemoveManga(manga))
+                                duplicates.isNotEmpty() -> screenModel.setDialog(
+                                    BrowseSourceScreenModel.Dialog.AddDuplicateManga(manga, duplicates),
+                                )
+                                else -> screenModel.addFavorite(manga)
+                            }
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    },
+                )
+            }
+            // SY <--
         }
 
         val onDismissRequest = { screenModel.setDialog(null) }
@@ -307,6 +419,24 @@ data class BrowseSourceScreen(
                     openMangaDexFollows = if (screenModel.sourceIsMangaDex) {
                         {
                             navigator.replace(MangaDexFollowsScreen(sourceId))
+                        }
+                    } else {
+                        null
+                    },
+                    onAiSearch = if (screenModel.isAiSearchAvailable()) {
+                        { prompt ->
+                            try {
+                                val query = screenModel.aiSearch(prompt)
+                                context.toast(context.stringResource(SYMR.strings.ai_search_generated, query))
+                                onDismissRequest()
+                            } catch (e: Exception) {
+                                context.toast(
+                                    context.stringResource(
+                                        SYMR.strings.ai_search_failed,
+                                        e.message ?: e.toString(),
+                                    ),
+                                )
+                            }
                         }
                     } else {
                         null

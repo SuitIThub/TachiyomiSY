@@ -10,7 +10,7 @@ import tachiyomi.core.common.preference.getLongArray
 import tachiyomi.domain.library.model.LibraryDisplayMode
 
 class SourcePreferences(
-    preferenceStore: PreferenceStore,
+    private val preferenceStore: PreferenceStore,
 ) {
 
     val sourceDisplayMode: Preference<LibraryDisplayMode> = preferenceStore.getObjectFromString(
@@ -107,6 +107,16 @@ class SourcePreferences(
     )
 
     val recommendationSearchFlags: Preference<Int> = preferenceStore.getInt("rec_search_flags", Int.MAX_VALUE)
+
+    fun sourceFeedSelectedSearch(sourceId: Long): Preference<Long> = preferenceStore.getLong(
+        Preference.appStateKey("source_feed_selected_$sourceId"),
+        -1L,
+    )
+
+    fun sourceFeedLastSeenUrl(savedSearchId: Long): Preference<String> = preferenceStore.getString(
+        Preference.appStateKey("source_feed_last_seen_$savedSearchId"),
+        "",
+    )
     // SY <--
 
     val migrationSources: Preference<List<Long>> = preferenceStore.getLongArray("migration_sources", emptyList())

@@ -50,6 +50,7 @@ fun SourceFilterDialog(
     onSavedSearchPress: (EXHSavedSearch) -> Unit,
     openMangaDexRandom: (() -> Unit)?,
     openMangaDexFollows: (() -> Unit)?,
+    onAiSearch: (suspend (String) -> Unit)?,
     // SY <--
 ) {
     val updateFilters = { onUpdate(filters) }
@@ -100,6 +101,17 @@ fun SourceFilterDialog(
                     )
                 }
             }
+
+            // SY -->
+            if (onAiSearch != null) {
+                item {
+                    AiSearchFilterHeader(onSearch = onAiSearch)
+                }
+                item {
+                    HorizontalDivider()
+                }
+            }
+            // SY <--
 
             item {
                 SavedSearchItem(

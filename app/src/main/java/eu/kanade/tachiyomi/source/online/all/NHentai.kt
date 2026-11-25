@@ -475,6 +475,11 @@ class NHentai(val context: Context) :
             2203215402871965477L, // zh
         )
 
+        fun forceNewestSort(filters: FilterList): FilterList {
+            filters.filterIsInstance<SortFilter>().forEach { it.state = SortOption.RECENT.ordinal }
+            return filters
+        }
+
         @OptIn(ExperimentalSerializationApi::class)
         private val jsonParser = Json {
             ignoreUnknownKeys = true

@@ -1401,6 +1401,13 @@ class EHentai(
             "e8e",
         )
 
+        fun forceNewestSort(filters: FilterList): FilterList {
+            filters.filterIsInstance<ToplistOptions>().forEach { it.state = ToplistOption.NONE.ordinal }
+            filters.filterIsInstance<ReverseFilter>().forEach { it.state = false }
+            filters.filterIsInstance<JumpSeekFilter>().forEach { it.state = "" }
+            return filters
+        }
+
         fun buildCookies(cookies: Map<String, String>) = cookies.entries.joinToString(separator = "; ") {
             "${URLEncoder.encode(it.key, "UTF-8")}=${URLEncoder.encode(it.value, "UTF-8")}"
         }

@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -29,14 +30,17 @@ import eu.kanade.tachiyomi.ui.browse.source.browse.SourceFilterDialog
 import eu.kanade.tachiyomi.ui.home.HomeScreen
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import eu.kanade.tachiyomi.util.system.toast
 import exh.ui.ifSourcesLoaded
 import kotlinx.coroutines.launch
 import mihon.feature.migration.dialog.MigrateMangaDialog
 import mihon.feature.migration.list.MigrationListScreen
 import mihon.presentation.core.util.collectAsLazyPagingItems
 import tachiyomi.core.common.Constants
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.i18n.MR
+import tachiyomi.i18n.sy.SYMR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.LoadingScreen
@@ -58,6 +62,7 @@ data class MigrateSourceSearchScreen(
         val uriHandler = LocalUriHandler.current
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
+        val context = LocalContext.current
 
         val screenModel = rememberScreenModel { BrowseSourceScreenModel(sourceId, query) }
         val state by screenModel.state.collectAsState()
@@ -143,6 +148,24 @@ data class MigrateSourceSearchScreen(
                     onSavedSearchPress = {},
                     openMangaDexRandom = null,
                     openMangaDexFollows = null,
+                    onAiSearch = if (screenModel.isAiSearchAvailable()) {
+                        { prompt ->
+                            try {
+                                val query = screenModel.aiSearch(prompt)
+                                context.toast(context.stringResource(SYMR.strings.ai_search_generated, query))
+                                onDismissRequest()
+                            } catch (e: Exception) {
+                                context.toast(
+                                    context.stringResource(
+                                        SYMR.strings.ai_search_failed,
+                                        e.message ?: e.toString(),
+                                    ),
+                                )
+                            }
+                        }
+                    } else {
+                        null
+                    },
                     // SY <--
                 )
             }

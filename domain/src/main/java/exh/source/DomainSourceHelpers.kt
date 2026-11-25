@@ -28,6 +28,14 @@ fun Source.isEhBasedSource() = id == EH_SOURCE_ID || id == EXH_SOURCE_ID
 
 fun Source.isNhBasedSource() = id == NHENTAI_SOURCE_ID || id in nHentaiSourceIds
 
+fun Long.supportsBrowseFeed(): Boolean =
+    this == EH_SOURCE_ID ||
+        this == EXH_SOURCE_ID ||
+        this == NHENTAI_SOURCE_ID ||
+        this in nHentaiSourceIds
+
+fun Source.supportsBrowseFeed() = id.supportsBrowseFeed()
+
 fun Manga.isNhBasedManga() = source == NHENTAI_SOURCE_ID || source in nHentaiSourceIds
 
 fun Source.isMdBasedSource() = id in mangaDexSourceIds

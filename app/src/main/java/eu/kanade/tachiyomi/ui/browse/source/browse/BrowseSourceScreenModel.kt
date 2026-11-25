@@ -22,15 +22,23 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.domain.track.interactor.AddTracks
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.util.ioCoroutineScope
+import eu.kanade.tachiyomi.data.aisearch.AiSearchPreferences
+import eu.kanade.tachiyomi.data.aisearch.AiSearchService
+import eu.kanade.tachiyomi.data.aisearch.aiSearchTargetOrNull
 import eu.kanade.tachiyomi.data.cache.CoverCache
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.online.MetadataSource
+import eu.kanade.tachiyomi.source.online.all.EHentai
 import eu.kanade.tachiyomi.source.online.all.MangaDex
+import eu.kanade.tachiyomi.source.online.all.NHentai
 import eu.kanade.tachiyomi.util.removeCovers
 import exh.metadata.metadata.RaisedSearchMetadata
 import exh.source.ExhPreferences
 import exh.source.getMainSource
+import exh.source.isEhBasedSource
+import exh.source.isNhBasedSource
 import exh.source.mangaDexSourceIds
+import exh.source.supportsBrowseFeed
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -51,6 +59,7 @@ import tachiyomi.core.common.preference.CheckboxState
 import tachiyomi.core.common.preference.mapAsCheckboxState
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.lang.launchNonCancellable
+import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
@@ -85,7 +94,7 @@ open class BrowseSourceScreenModel(
     private val savedSearch: Long? = null,
     // SY <--
     private val sourceManager: SourceManager = Injekt.get(),
-    sourcePreferences: SourcePreferences = Injekt.get(),
+    private val sourcePreferences: SourcePreferences = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
     private val coverCache: CoverCache = Injekt.get(),
     private val getRemoteManga: GetRemoteManga = Injekt.get(),
@@ -105,6 +114,8 @@ open class BrowseSourceScreenModel(
     private val deleteSavedSearchById: DeleteSavedSearchById = Injekt.get(),
     private val insertSavedSearch: InsertSavedSearch = Injekt.get(),
     private val getExhSavedSearch: GetExhSavedSearch = Injekt.get(),
+    private val aiSearchPreferences: AiSearchPreferences = Injekt.get(),
+    private val aiSearchService: AiSearchService = Injekt.get(),
     // SY <--
 ) : StateScreenModel<BrowseSourceScreenModel.State>(State(Listing.valueOf(listingQuery))) {
 
@@ -120,6 +131,11 @@ open class BrowseSourceScreenModel(
     private val filterSerializer = FilterSerializer()
 
     val sourceIsMangaDex = sourceId in mangaDexSourceIds
+
+    val supportsBrowseFeed = source.supportsBrowseFeed()
+
+    fun isAiSearchAvailable(): Boolean =
+        aiSearchPreferences.isConfigured() && source.aiSearchTargetOrNull() != null
     // SY <--
 
     init {
@@ -164,6 +180,13 @@ open class BrowseSourceScreenModel(
             .map { it.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, EXHSavedSearch::name)) }
             .onEach { savedSearches ->
                 mutableState.update { it.copy(savedSearches = savedSearches) }
+                val listing = state.value.listing
+                if (
+                    listing is Listing.Feed &&
+                    (listing.savedSearchId < 0 || savedSearches.none { it.id == listing.savedSearchId })
+                ) {
+                    openFeed(savedSearches)
+                }
             }
             .launchIn(screenModelScope)
         // SY <--
@@ -176,6 +199,11 @@ open class BrowseSourceScreenModel(
     val mangaPagerFlowFlow = state.map { it.listing }
         .distinctUntilChanged()
         .map { listing ->
+            // SY -->
+            if (listing is Listing.Feed && listing.savedSearchId < 0) {
+                return@map emptyFlow()
+            }
+            // SY <--
             Pager(PagingConfig(pageSize = 25)) {
                 // SY -->
                 createSourcePagingSource(listing.query ?: "", listing.filters)
@@ -226,6 +254,11 @@ open class BrowseSourceScreenModel(
     }
 
     fun setListing(listing: Listing) {
+        // SY -->
+        if (state.value.listing is Listing.Feed && listing !is Listing.Feed) {
+            saveFeedWatermark()
+        }
+        // SY <--
         mutableState.update { it.copy(listing = listing, toolbarQuery = null) }
     }
 
@@ -239,6 +272,9 @@ open class BrowseSourceScreenModel(
 
     fun search(query: String? = null, filters: FilterList? = null) {
         // SY -->
+        if (state.value.listing is Listing.Feed) {
+            saveFeedWatermark()
+        }
         if (filters != null && filters !== state.value.filters) {
             mutableState.update { state -> state.copy(filters = filters) }
         }
@@ -257,7 +293,30 @@ open class BrowseSourceScreenModel(
         }
     }
 
+    // SY -->
+    /**
+     * Rewrites [prompt] into a site search query via OpenRouter, then searches with reset filters.
+     * @return the generated query string
+     */
+    suspend fun aiSearch(prompt: String): String = withIOContext {
+        val target = source.aiSearchTargetOrNull()
+            ?: error("AI search is only available for E-Hentai / NHentai")
+        val query = aiSearchService.generateQuery(prompt, target)
+        withUIContext {
+            val filters = source.getFilterList()
+            mutableState.update { it.copy(filters = filters) }
+            search(query = query, filters = filters)
+        }
+        query
+    }
+    // SY <--
+
     fun searchGenre(genreName: String) {
+        // SY -->
+        if (state.value.listing is Listing.Feed) {
+            saveFeedWatermark()
+        }
+        // SY <--
         val defaultFilters = source.getFilterList()
         var genreExists = false
 
@@ -416,11 +475,22 @@ open class BrowseSourceScreenModel(
             override val filters: FilterList,
         ) : Listing(query = query, filters = filters)
 
+        // SY -->
+        data class Feed(
+            val savedSearchId: Long,
+            override val query: String?,
+            override val filters: FilterList,
+        ) : Listing(query = query, filters = filters)
+        // SY <--
+
         companion object {
             fun valueOf(query: String?): Listing {
                 return when (query) {
                     GetRemoteManga.QUERY_POPULAR -> Popular
                     GetRemoteManga.QUERY_LATEST -> Latest
+                    // SY -->
+                    GetRemoteManga.QUERY_FEED -> Feed(savedSearchId = -1, query = null, filters = FilterList())
+                    // SY <--
                     else -> Search(query = query, filters = FilterList()) // filters are filled in later
                 }
             }
@@ -452,12 +522,103 @@ open class BrowseSourceScreenModel(
         // SY -->
         val savedSearches: List<EXHSavedSearch> = emptyList(),
         val filterable: Boolean = true,
+        val lastSeenUrl: String? = null,
+        val newestUrlThisSession: String? = null,
         // SY <--
     ) {
         val isUserQuery get() = listing is Listing.Search && !listing.query.isNullOrEmpty()
+        // SY -->
+        val isFeed get() = listing is Listing.Feed
+        val hasFeedSavedSearches get() = savedSearches.isNotEmpty()
+        // SY <--
     }
 
     // EXH -->
+    fun openFeed(savedSearches: List<EXHSavedSearch> = state.value.savedSearches) {
+        if (!supportsBrowseFeed) return
+        if (savedSearches.isEmpty()) {
+            if (state.value.listing is Listing.Feed) {
+                saveFeedWatermark()
+            }
+            mutableState.update {
+                it.copy(
+                    listing = Listing.Feed(savedSearchId = -1, query = null, filters = FilterList()),
+                    toolbarQuery = null,
+                    lastSeenUrl = null,
+                    newestUrlThisSession = null,
+                )
+            }
+            return
+        }
+
+        val preferredId = sourcePreferences.sourceFeedSelectedSearch(sourceId).get()
+        val selected = savedSearches.find { it.id == preferredId } ?: savedSearches.first()
+        val current = state.value.listing
+        if (current is Listing.Feed && current.savedSearchId == selected.id) {
+            return
+        }
+        setFeedSavedSearch(selected)
+    }
+
+    fun setFeedSavedSearch(search: EXHSavedSearch) {
+        val current = state.value.listing
+        if (current is Listing.Feed && current.savedSearchId == search.id) {
+            return
+        }
+
+        screenModelScope.launchIO {
+            val resolved = getExhSavedSearch.awaitOne(search.id, source::getFilterList)
+            if (resolved?.filterList == null && state.value.filters.isNotEmpty()) {
+                return@launchIO
+            }
+
+            val listing = state.value.listing
+            if (listing is Listing.Feed && listing.savedSearchId != search.id) {
+                saveFeedWatermark()
+            }
+
+            val filters = forceNewestSort(resolved?.filterList ?: source.getFilterList())
+            val lastSeen = sourcePreferences.sourceFeedLastSeenUrl(search.id).get().ifBlank { null }
+
+            sourcePreferences.sourceFeedSelectedSearch(sourceId).set(search.id)
+            mutableState.update {
+                it.copy(
+                    listing = Listing.Feed(
+                        savedSearchId = search.id,
+                        query = resolved?.query ?: search.query,
+                        filters = filters,
+                    ),
+                    filters = filters,
+                    toolbarQuery = null,
+                    lastSeenUrl = lastSeen,
+                    newestUrlThisSession = null,
+                )
+            }
+        }
+    }
+
+    fun onFeedFirstItemLoaded(url: String?) {
+        if (url.isNullOrBlank()) return
+        if (state.value.listing !is Listing.Feed) return
+        if (state.value.newestUrlThisSession != null) return
+        mutableState.update { it.copy(newestUrlThisSession = url) }
+    }
+
+    fun saveFeedWatermark() {
+        val listing = state.value.listing as? Listing.Feed ?: return
+        if (listing.savedSearchId < 0) return
+        val newest = state.value.newestUrlThisSession ?: return
+        sourcePreferences.sourceFeedLastSeenUrl(listing.savedSearchId).set(newest)
+    }
+
+    private fun forceNewestSort(filters: FilterList): FilterList {
+        return when {
+            source.isEhBasedSource() -> EHentai.forceNewestSort(filters)
+            source.isNhBasedSource() -> NHentai.forceNewestSort(filters)
+            else -> filters
+        }
+    }
+
     fun onSaveSearch() {
         screenModelScope.launchIO {
             val names = state.value.savedSearches.map { it.name }
@@ -506,7 +667,10 @@ open class BrowseSourceScreenModel(
     ) {
         screenModelScope.launchNonCancellable {
             val query = state.value.toolbarQuery?.takeUnless {
-                it.isBlank() || it == GetRemoteManga.QUERY_POPULAR || it == GetRemoteManga.QUERY_LATEST
+                it.isBlank() ||
+                    it == GetRemoteManga.QUERY_POPULAR ||
+                    it == GetRemoteManga.QUERY_LATEST ||
+                    it == GetRemoteManga.QUERY_FEED
             }?.trim()
             val filterList = state.value.filters.ifEmpty { source.getFilterList() }
             insertSavedSearch.await(

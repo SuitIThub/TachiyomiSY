@@ -32,9 +32,16 @@ fun BrowseSourceCompactGrid(
     mangaList: LazyPagingItems<StateFlow</* SY --> */Pair<Manga, RaisedSearchMetadata?>/* SY <-- */>>,
     columns: GridCells,
     contentPadding: PaddingValues,
+    // SY -->
+    lastSeenUrl: String? = null,
+    // SY <--
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
 ) {
+    // SY -->
+    val markerIndex = rememberLastVisitMarkerIndex(mangaList, lastSeenUrl)
+    val displayCount = mangaList.itemCount + if (markerIndex != null) 1 else 0
+    // SY <--
     LazyVerticalGrid(
         columns = columns,
         contentPadding = contentPadding + PaddingValues(8.dp),
@@ -47,8 +54,28 @@ fun BrowseSourceCompactGrid(
             }
         }
 
-        items(count = mangaList.itemCount) { index ->
+        items(
+            count = displayCount,
+            span = { displayIndex ->
+                // SY -->
+                if (markerIndex != null && displayIndex == markerIndex) {
+                    GridItemSpan(maxLineSpan)
+                } else {
+                    GridItemSpan(1)
+                }
+                // SY <--
+            },
+        ) { displayIndex ->
             // SY -->
+            if (markerIndex != null && displayIndex == markerIndex) {
+                BrowseSourceLastVisitHeader()
+                return@items
+            }
+            val index = if (markerIndex != null && displayIndex > markerIndex) {
+                displayIndex - 1
+            } else {
+                displayIndex
+            }
             val pair by mangaList[index]?.collectAsState() ?: return@items
             val manga = pair.first
             val metadata = pair.second

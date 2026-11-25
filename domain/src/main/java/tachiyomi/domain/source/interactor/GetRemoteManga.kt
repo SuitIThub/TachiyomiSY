@@ -19,5 +19,10 @@ class GetRemoteManga(
     companion object {
         const val QUERY_POPULAR = "eu.kanade.domain.source.interactor.POPULAR"
         const val QUERY_LATEST = "eu.kanade.domain.source.interactor.LATEST"
+
+        // SY -->
+        /** Sentinel only — never pass to [SourceRepository.search]. */
+        const val QUERY_FEED = "eu.kanade.domain.source.interactor.FEED"
+        // SY <--
     }
 }

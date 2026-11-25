@@ -13,6 +13,9 @@ import eu.kanade.domain.manga.interactor.UpdateManga
 import eu.kanade.domain.source.interactor.GetExhSavedSearch
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.presentation.browse.SourceFeedUI
+import eu.kanade.tachiyomi.data.aisearch.AiSearchPreferences
+import eu.kanade.tachiyomi.data.aisearch.AiSearchService
+import eu.kanade.tachiyomi.data.aisearch.aiSearchTargetOrNull
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.online.all.MangaDex
@@ -65,11 +68,16 @@ open class SourceFeedScreenModel(
     private val insertFeedSavedSearch: InsertFeedSavedSearch = Injekt.get(),
     private val deleteFeedSavedSearchById: DeleteFeedSavedSearchById = Injekt.get(),
     private val getExhSavedSearch: GetExhSavedSearch = Injekt.get(),
+    private val aiSearchPreferences: AiSearchPreferences = Injekt.get(),
+    private val aiSearchService: AiSearchService = Injekt.get(),
 ) : StateScreenModel<SourceFeedState>(SourceFeedState()) {
 
     val source = sourceManager.getOrStub(sourceId)
 
     val sourceIsMangaDex = sourceId in mangaDexSourceIds
+
+    fun isAiSearchAvailable(): Boolean =
+        aiSearchPreferences.isConfigured() && source.aiSearchTargetOrNull() != null
 
     private val coroutineDispatcher = Executors.newFixedThreadPool(5).asCoroutineDispatcher()
 
@@ -223,6 +231,12 @@ open class SourceFeedScreenModel(
                 )
             }
         }
+    }
+
+    suspend fun aiSearch(prompt: String): String = withIOContext {
+        val target = source.aiSearchTargetOrNull()
+            ?: error("AI search is only available for E-Hentai / NHentai")
+        aiSearchService.generateQuery(prompt, target)
     }
 
     fun onSavedSearch(

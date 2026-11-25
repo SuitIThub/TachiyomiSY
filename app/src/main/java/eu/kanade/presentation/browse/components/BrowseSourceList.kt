@@ -28,9 +28,16 @@ import tachiyomi.presentation.core.util.plus
 fun BrowseSourceList(
     mangaList: LazyPagingItems<StateFlow</* SY --> */Pair<Manga, RaisedSearchMetadata?>/* SY <-- */>>,
     contentPadding: PaddingValues,
+    // SY -->
+    lastSeenUrl: String? = null,
+    // SY <--
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
 ) {
+    // SY -->
+    val markerIndex = rememberLastVisitMarkerIndex(mangaList, lastSeenUrl)
+    val displayCount = mangaList.itemCount + if (markerIndex != null) 1 else 0
+    // SY <--
     LazyColumn(
         contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
     ) {
@@ -40,8 +47,17 @@ fun BrowseSourceList(
             }
         }
 
-        items(count = mangaList.itemCount) { index ->
+        items(count = displayCount) { displayIndex ->
             // SY -->
+            if (markerIndex != null && displayIndex == markerIndex) {
+                BrowseSourceLastVisitHeader()
+                return@items
+            }
+            val index = if (markerIndex != null && displayIndex > markerIndex) {
+                displayIndex - 1
+            } else {
+                displayIndex
+            }
             val pair by mangaList[index]?.collectAsState() ?: return@items
             val manga = pair.first
             val metadata = pair.second

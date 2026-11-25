@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.data.download.DownloadProvider
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.sync.service.GoogleDriveService
 import eu.kanade.tachiyomi.data.track.TrackerManager
+import eu.kanade.tachiyomi.data.aisearch.AiSearchService
 import eu.kanade.tachiyomi.data.translator.MangaSourceLanguageInferrer
 import eu.kanade.tachiyomi.data.translator.PageTranslatorCache
 import eu.kanade.tachiyomi.data.translator.PageTranslatorEngine
@@ -187,6 +188,8 @@ class AppModule(val app: Application) : InjektModule {
         addSingletonFactory { EHentaiUpdateHelper(app) }
 
         addSingletonFactory { PagePreviewCache(app) }
+
+        addSingletonFactory { AiSearchService(get(), get(), get()) }
 
         addSingletonFactory { PageTranslatorCache(app, get()) }
         addSingletonFactory { MlKitPageOcr() }

@@ -57,9 +57,16 @@ import java.time.ZoneId
 fun BrowseSourceEHentaiList(
     mangaList: LazyPagingItems<StateFlow</* SY --> */Pair<Manga, RaisedSearchMetadata?>/* SY <-- */>>,
     contentPadding: PaddingValues,
+    // SY -->
+    lastSeenUrl: String? = null,
+    // SY <--
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
 ) {
+    // SY -->
+    val markerIndex = rememberLastVisitMarkerIndex(mangaList, lastSeenUrl)
+    val displayCount = mangaList.itemCount + if (markerIndex != null) 1 else 0
+    // SY <--
     LazyColumn(
         contentPadding = contentPadding,
     ) {
@@ -69,10 +76,23 @@ fun BrowseSourceEHentaiList(
             }
         }
 
-        items(count = mangaList.itemCount) { index ->
+        items(count = displayCount) { displayIndex ->
+            // SY -->
+            if (markerIndex != null && displayIndex == markerIndex) {
+                BrowseSourceLastVisitHeader(
+                    modifier = Modifier.padding(horizontal = MaterialTheme.padding.small),
+                )
+                return@items
+            }
+            val index = if (markerIndex != null && displayIndex > markerIndex) {
+                displayIndex - 1
+            } else {
+                displayIndex
+            }
             val pair by mangaList[index]?.collectAsState() ?: return@items
             val manga = pair.first
             val metadata = pair.second
+            // SY <--
 
             BrowseSourceEHentaiListItem(
                 manga = manga,

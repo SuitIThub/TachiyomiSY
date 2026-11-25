@@ -45,6 +45,7 @@ fun BrowseSourceContent(
     columns: GridCells,
     // SY -->
     ehentaiBrowseDisplayMode: Boolean,
+    lastSeenUrl: String? = null,
     // SY <--
     displayMode: LibraryDisplayMode,
     snackbarHostState: SnackbarHostState,
@@ -139,6 +140,7 @@ fun BrowseSourceContent(
         BrowseSourceEHentaiList(
             mangaList = mangaList,
             contentPadding = contentPadding,
+            lastSeenUrl = lastSeenUrl,
             onMangaClick = onMangaClick,
             onMangaLongClick = onMangaLongClick,
         )
@@ -152,6 +154,7 @@ fun BrowseSourceContent(
                 mangaList = mangaList,
                 columns = columns,
                 contentPadding = contentPadding,
+                lastSeenUrl = lastSeenUrl,
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
             )
@@ -160,6 +163,7 @@ fun BrowseSourceContent(
             BrowseSourceList(
                 mangaList = mangaList,
                 contentPadding = contentPadding,
+                lastSeenUrl = lastSeenUrl,
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
             )
@@ -169,6 +173,7 @@ fun BrowseSourceContent(
                 mangaList = mangaList,
                 columns = columns,
                 contentPadding = contentPadding,
+                lastSeenUrl = lastSeenUrl,
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
             )

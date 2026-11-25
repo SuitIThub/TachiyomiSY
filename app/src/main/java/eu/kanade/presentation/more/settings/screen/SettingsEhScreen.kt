@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import eu.kanade.presentation.library.components.SyncFavoritesWarningDialog
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.tachiyomi.data.aisearch.AiSearchPreferences
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.toast
 import exh.eh.EHentaiUpdateWorker
@@ -152,6 +153,7 @@ object SettingsEhScreen : SearchableSettings {
                     enhancedEhentaiView(exhPreferences),
                 ),
             ),
+            getAiSearchGroup(),
             Preference.PreferenceGroup(
                 stringResource(SYMR.strings.favorites_sync),
                 preferenceItems = listOf(
@@ -171,6 +173,37 @@ object SettingsEhScreen : SearchableSettings {
                         getExhFavoriteMangaWithMetadata,
                         getFlatMetadataById,
                     ),
+                ),
+            ),
+        )
+    }
+
+    @Composable
+    private fun getAiSearchGroup(): Preference.PreferenceGroup {
+        val prefs = remember { Injekt.get<AiSearchPreferences>() }
+        val enabled by prefs.enabled.collectAsState()
+
+        return Preference.PreferenceGroup(
+            title = stringResource(SYMR.strings.pref_category_ai_search),
+            preferenceItems = listOf(
+                Preference.PreferenceItem.InfoPreference(
+                    title = stringResource(SYMR.strings.pref_ai_search_info),
+                ),
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = prefs.enabled,
+                    title = stringResource(SYMR.strings.pref_ai_search_enabled),
+                    subtitle = stringResource(SYMR.strings.pref_ai_search_enabled_summary),
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.openRouterApiKey,
+                    title = stringResource(SYMR.strings.pref_ai_search_openrouter_api_key),
+                    enabled = enabled,
+                ),
+                Preference.PreferenceItem.EditTextPreference(
+                    preference = prefs.model,
+                    title = stringResource(SYMR.strings.pref_ai_search_model),
+                    subtitle = stringResource(SYMR.strings.pref_ai_search_model_summary),
+                    enabled = enabled,
                 ),
             ),
         )

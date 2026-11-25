@@ -440,6 +440,8 @@
     <string name="too_many_in_feed">Too many sources in your feed, cannot add more than 10</string>
     <string name="feed_tab_empty">You don\'t have any sources in your feed, navigate to the top right to add one</string>
     <string name="feed_add">Add %1$s to feed?</string>
+    <string name="browse_feed_empty">Save a search filter to use it in the feed</string>
+    <string name="browse_feed_last_visit">Last visit</string>
 
     <!-- Sort by tags -->
     <string name="add_tag">Add Tag</string>
@@ -768,4 +770,19 @@
     <string name="pref_page_translator_info">Uses on-device OCR. DeepL improves translation quality when an API key is set. With source language set to Auto, the app infers it from manga metadata (language, tags, title, description, source). Use Standard/Aggressive text grouping if sentences are split across boxes. Stylized manga fonts may reduce accuracy.</string>
     <string name="action_toggle_page_translator">Toggle page translator</string>
     <string name="page_translator_models_downloading">Downloading translation models…</string>
+
+    <!-- AI search -->
+    <string name="pref_category_ai_search">AI search</string>
+    <string name="pref_ai_search_info">Turns natural-language prompts into E-Hentai / NHentai search queries via OpenRouter. Does not crawl or index galleries — only rewrites the query, then uses normal site search.</string>
+    <string name="pref_ai_search_enabled">Enable AI search</string>
+    <string name="pref_ai_search_enabled_summary">Show AI search in EH / NH browse filters when an API key is set</string>
+    <string name="pref_ai_search_openrouter_api_key">OpenRouter API key</string>
+    <string name="pref_ai_search_model">OpenRouter model</string>
+    <string name="pref_ai_search_model_summary">Default: google/gemini-2.0-flash-001 (cheap &amp; fast)</string>
+    <string name="ai_search_title">AI search</string>
+    <string name="ai_search_hint">e.g. english yuri school, no loli</string>
+    <string name="ai_search_action">Generate query</string>
+    <string name="ai_search_not_configured">Set an OpenRouter API key under Settings → E-Hentai → AI search</string>
+    <string name="ai_search_failed">AI search failed: %1$s</string>
+    <string name="ai_search_generated">Searching: %1$s</string>
 </resources>
